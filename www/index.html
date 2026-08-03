@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FitTrack · 健身管理</title>
+<script src="chart.umd.min.js"></script>
+<script src="xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}
+:root{
+  --bg:#f4f6f9;
+  --card:#fff;
+  --primary:#e8590c;
+  --primary-light:#f76707;
+  --primary-bg:#fff4e6;
+  --text:#1a1a2e;
+  --text-secondary:#6c757d;
+  --border:#e9ecef;
+  --shadow:0 2px 12px rgba(0,0,0,.06);
+  --radius:12px;
+  --radius-sm:8px;
+  --green:#2f9e44;
+  --blue:#1c7ed6;
+  --red:#e03131;
+}
+body{background:var(--bg);color:var(--text);min-height:100vh}
+.app{max-width:800px;margin:0 auto;padding:16px 16px 90px}
+
+/* header */
+.header{display:flex;align-items:center;justify-content:space-between;padding:16px 0 20px}
+.header h1{font-size:22px;font-weight:700;display:flex;align-items:center;gap:8px}
+.header h1 span{background:var(--primary);color:#fff;font-size:12px;padding:2px 10px;border-radius:20px}
+
+/* tabs */
+.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:800px;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:100;padding:6px 0 env(safe-area-inset-bottom,6px)}
+.tab{flex:1;text-align:center;padding:8px 0;cursor:pointer;font-size:12px;color:var(--text-secondary);transition:all .2s;border:none;background:none;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tab .tab-icon{font-size:20px;line-height:1}
+.tab.active{color:var(--primary);font-weight:600}
+.tab.active .tab-icon{color:var(--primary)}
+
+/* cards */
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:12px}
+.card-title{font-size:15px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+
+/* form */
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:13px;color:var(--text-secondary);margin-bottom:4px;font-weight:500}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+input,textarea,select{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;outline:none;transition:border .2s;background:var(--bg)}
+input:focus,textarea:focus{border-color:var(--primary)}
+textarea{resize:vertical;min-height:80px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 20px;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-light)}
+.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--text)}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+.btn-sm{padding:6px 14px;font-size:12px}
+.btn-full{width:100%}
+.btn-green{background:var(--green);color:#fff}
+.btn-blue{background:var(--blue);color:#fff}
+.tag{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:500;background:var(--primary-bg);color:var(--primary);margin:2px}
+
+/* summary */
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.summary-item{text-align:center;padding:10px 4px;background:var(--bg);border-radius:var(--radius-sm)}
+.summary-item .val{font-size:18px;font-weight:700;color:var(--text)}
+.summary-item .label{font-size:11px;color:var(--text-secondary);margin-top:2px}
+.summary-item .change{font-size:11px;margin-top:1px}
+.change.up{color:var(--green)}
+.change.down{color:var(--red)}
+
+/* chart */
+.chart-wrap{position:relative;height:260px}
+.chart-controls{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.chart-controls .ck{font-size:12px;padding:4px 12px;border-radius:20px;border:1px solid var(--border);cursor:pointer;background:var(--card);color:var(--text-secondary);transition:all .2s}
+.chart-controls .ck.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+/* diary */
+.diary-list{max-height:500px;overflow-y:auto}
+.diary-item{padding:14px 0;border-bottom:1px solid var(--border)}
+.diary-item:last-child{border-bottom:none}
+.diary-date{font-size:12px;color:var(--text-secondary)}
+.diary-title{font-size:15px;font-weight:600;margin:4px 0}
+.diary-content{font-size:13px;color:var(--text-secondary);line-height:1.6;white-space:pre-wrap}
+.diary-tags{margin-top:6px}
+
+/* data table */
+.data-table-wrap{overflow-x:auto}
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{background:var(--bg);padding:8px 10px;text-align:left;font-weight:600;border-bottom:2px solid var(--border);white-space:nowrap}
+.data-table td{padding:8px 10px;border-bottom:1px solid var(--border)}
+.data-table tr:hover td{background:var(--primary-bg)}
+
+/* toast */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:10px 24px;border-radius:30px;font-size:14px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+
+/* empty state */
+.empty{text-align:center;padding:40px 20px;color:var(--text-secondary)}
+.empty .icon{font-size:48px;margin-bottom:12px}
+.empty p{font-size:14px}
+
+/* modal overlay */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .3s}
+.modal-overlay.show{opacity:1;pointer-events:auto}
+.modal{background:var(--card);border-radius:var(--radius);padding:24px;width:100%;max-width:420px;max-height:80vh;overflow-y:auto}
+.modal-title{font-size:17px;font-weight:600;margin-bottom:16px}
+
+@media(max-width:500px){
+  .summary-grid{grid-template-columns:repeat(2,1fr)}
+  .form-row{grid-template-columns:1fr}
+  .header h1{font-size:18px}
+}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <!-- header -->
+  <div class="header">
+    <h1>🏋️ FitTrack <span>v1</span></h1>
+    <span style="font-size:13px;color:var(--text-secondary)" id="todayLabel"></span>
+  </div>
+
+  <!-- ===== 页面容器 ===== -->
+  <!-- 总览 -->
+  <div class="page" id="page-dashboard">
+    <div class="card">
+      <div class="card-title">📊 今日概览</div>
+      <div class="summary-grid" id="todaySummary"><div class="empty" style="padding:16px;grid-column:1/-1">今日暂无数据</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📈 近期趋势</div>
+      <div class="chart-controls" id="miniChartCk"></div>
+      <div class="chart-wrap"><canvas id="miniChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📔 最近日记</div>
+      <div id="recentDiaries"></div>
+    </div>
+  </div>
+
+  <!-- 指标 -->
+  <div class="page" id="page-metrics" style="display:none">
+    <div class="card">
+      <div class="card-title">✏️ 记录身体指标</div>
+      <form id="metricForm" autocomplete="off">
+        <div class="form-group"><label>日期</label><input type="date" id="mDate"></div>
+        <div class="form-row">
+          <div class="form-group"><label>体重 (kg)</label><input type="number" id="mWeight" step="0.1" placeholder="65.0"></div>
+          <div class="form-group"><label>体脂率 (%)</label><input type="number" id="mFat" step="0.1" placeholder="18.5"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>肌肉量 (kg)</label><input type="number" id="mMuscle" step="0.1" placeholder="52.0"></div>
+          <div class="form-group"><label>腰围 (cm)</label><input type="number" id="mWaist" step="0.5" placeholder="78"></div>
+        </div>
+        <div class="form-group"><label>备注（可选）</label><input type="text" id="mNote" placeholder="比如：晨起空腹测量"></div>
+        <button type="submit" class="btn btn-primary btn-full">保存指标</button>
+      </form>
+    </div>
+    <div class="card">
+      <div class="card-title">📈 指标变化趋势</div>
+      <div class="chart-controls" id="chartCk"></div>
+      <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- 日记 -->
+  <div class="page" id="page-diary" style="display:none">
+    <div class="card">
+      <div class="card-title">✏️ 写健身笔记</div>
+      <form id="diaryForm" autocomplete="off">
+        <div class="form-group"><label>日期</label><input type="date" id="dDate"></div>
+        <div class="form-group"><label>标题</label><input type="text" id="dTitle" placeholder="比如：深蹲技巧总结"></div>
+        <div class="form-group"><label>内容</label><textarea id="dContent" placeholder="写下你的心得、技巧、窍门……"></textarea></div>
+        <div class="form-group">
+          <label>标签</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="窍门" class="dtag"> 🛠 窍门</label>
+            <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="技巧" class="dtag"> ⚡ 技巧</label>
+            <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="心得" class="dtag"> 💡 心得</label>
+            <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="计划" class="dtag"> 📋 计划</label>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">保存笔记</button>
+      </form>
+    </div>
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>📚 所有笔记</span>
+        <span id="diaryCount" style="font-size:12px;color:var(--text-secondary);font-weight:400"></span>
+      </div>
+      <div class="diary-list" id="diaryList"></div>
+    </div>
+  </div>
+
+  <!-- 数据 -->
+  <div class="page" id="page-data" style="display:none">
+    <div class="card">
+      <div class="card-title">☁️ 云同步（坚果云）</div>
+      <div class="form-group"><label>坚果云账号（邮箱）</label><input type="text" id="davUser" placeholder="你的坚果云登录邮箱" autocomplete="username"></div>
+      <div class="form-group"><label>坚果云应用密码</label><input type="password" id="davPass" placeholder="应用密码（非登录密码）" autocomplete="current-password"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="saveSyncCfg">保存并测试</button>
+        <button class="btn btn-outline" id="syncNow">立即同步</button>
+      </div>
+      <div id="syncStatus" style="margin-top:10px;font-size:13px;color:var(--text-secondary)">未配置云同步</div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-top:8px">凭据仅存本机，直连坚果云 WebDAV，不经过任何第三方中转。</div>
+    </div>
+    <div class="card">
+      <div class="card-title">📤 导出数据</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-green" id="exportMetrics">导出指标数据.xlsx</button>
+        <button class="btn btn-blue" id="exportDiaries">导出日记数据.xlsx</button>
+        <button class="btn btn-outline" id="exportAll">导出全部数据.xlsx</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>📋 指标数据表</span>
+        <span id="metricCount" style="font-size:12px;color:var(--text-secondary);font-weight:400"></span>
+      </div>
+      <div class="data-table-wrap" id="metricTableWrap"><div class="empty"><p>暂无数据</p></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- tabs -->
+<div class="tabs">
+  <button class="tab active" data-page="dashboard"><span class="tab-icon">📊</span> 总览</button>
+  <button class="tab" data-page="metrics"><span class="tab-icon">📝</span> 指标</button>
+  <button class="tab" data-page="diary"><span class="tab-icon">📔</span> 日记</button>
+  <button class="tab" data-page="data"><span class="tab-icon">📤</span> 数据</button>
+</div>
+
+<!-- toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== 存储 =====
+const STORAGE_KEY = 'fittrack_data';
+function loadData(){
+  try{
+    const d=JSON.parse(localStorage.getItem(STORAGE_KEY))||{metrics:[],diaries:[]};
+    if(!d.updatedAt)d.updatedAt='';
+    return d;
+  }catch{return {metrics:[],diaries:[],updatedAt:''}}
+}
+function saveData(d){localStorage.setItem(STORAGE_KEY,JSON.stringify(d))}
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.classList.add('show');
+  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2200);
+}
+function today(){return new Date().toISOString().slice(0,10)}
+
+// ===== 渲染 =====
+let data=loadData();
+let chartInst=null, miniChartInst=null;
+
+// 格式化日期
+function fmtDate(d){const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const dt=new Date(d+'T00:00:00');return `${m[dt.getMonth()]} ${dt.getDate()}`}
+function fmtDateFull(d){const dt=new Date(d+'T00:00:00');return `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}`}
+
+// 计算差值
+function getChange(key,cur){
+  const sorted=data.metrics.filter(m=>m[key]!=null&&m[key]!=='').sort((a,b)=>a.date.localeCompare(b.date));
+  if(sorted.length<2)return null;
+  const idx=sorted.findIndex(m=>m.date===cur.date);
+  if(idx<=0)return null;
+  const prev=sorted[idx-1][key];
+  const curr=cur[key];
+  const diff=Number((curr-prev).toFixed(1));
+  return diff;
+}
+
+// 获取最新指标
+function latestMetric(){
+  const sorted=[...data.metrics].sort((a,b)=>b.date.localeCompare(a.date));
+  return sorted[0]||null;
+}
+
+// 渲染今日概览
+function renderDashboard(){
+  const m=latestMetric();
+  const el=document.getElementById('todaySummary');
+  if(!m||m.date!==today()){
+    el.innerHTML='<div class="empty" style="padding:16px;grid-column:1/-1">今日暂无数据，去「指标」页面记录</div>';
+  }else{
+    const items=[
+      {key:'体重',val:m.weight,unit:'kg',field:'weight'},
+      {key:'体脂率',val:m.fat,unit:'%',field:'fat'},
+      {key:'肌肉量',val:m.muscle,unit:'kg',field:'muscle'},
+      {key:'腰围',val:m.waist,unit:'cm',field:'waist'},
+    ];
+    el.innerHTML='<div class="summary-grid">'+items.map(i=>{
+      const chg=getChange(i.field,m);
+      const chgHtml=chg!==null?`<div class="change ${chg>0?'up':'down'}">${chg>0?'↑':'↓'}${Math.abs(chg)}</div>`:'';
+      return `<div class="summary-item"><div class="val">${i.val||'—'}</div><div class="label">${i.key}(${i.unit})</div>${chgHtml}</div>`;
+    }).join('')+'</div>';
+  }
+
+  // 最近日记
+  const diaries=[...data.diaries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
+  const rd=document.getElementById('recentDiaries');
+  if(!diaries.length){
+    rd.innerHTML='<div class="empty" style="padding:12px"><p>还没有日记，去「日记」页面写第一篇</p></div>';
+  }else{
+    rd.innerHTML=diaries.map(d=>`<div class="diary-item"><div class="diary-date">${fmtDateFull(d.date)}</div><div class="diary-title">${esc(d.title)}</div><div class="diary-tags">${(d.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div></div>`).join('');
+  }
+}
+
+// 渲染指标图表控制
+function renderChartCtrls(){
+  const fields=[
+    {key:'weight',label:'体重',color:'#e8590c'},
+    {key:'fat',label:'体脂率',color:'#2f9e44'},
+    {key:'muscle',label:'肌肉量',color:'#1c7ed6'},
+    {key:'waist',label:'腰围',color:'#e03131'},
+  ];
+  const ckIds=['chartCk','miniChartCk'];
+  ckIds.forEach(ckId=>{
+    const el=document.getElementById(ckId);
+    el.innerHTML=fields.map((f,i)=>{
+      const active=ckId==='chartCk'?(i===0?' active':''):(i===0?' active':'');
+      return `<span class="ck${active}" data-field="${f.key}" data-color="${f.color}">${f.label}</span>`;
+    }).join('');
+    el.querySelectorAll('.ck').forEach(ck=>ck.addEventListener('click',function(){
+      el.querySelectorAll('.ck').forEach(c=>c.classList.remove('active'));
+      this.classList.add('active');
+      if(ckId==='chartCk')updateMainChart();
+      else updateMiniChart();
+    }));
+  });
+}
+
+// 更新主图表
+function updateMainChart(){
+  const activeCk=document.querySelector('#chartCk .ck.active');
+  if(!activeCk)return;
+  const field=activeCk.dataset.field;
+  const color=activeCk.dataset.color;
+  const points=data.metrics.filter(m=>m[field]!=null&&m[field]!=='').sort((a,b)=>a.date.localeCompare(b.date));
+  const labels=points.map(p=>fmtDate(p.date));
+  const vals=points.map(p=>Number(p[field]));
+  const labelMap={weight:'体重(kg)',fat:'体脂率(%)',muscle:'肌肉量(kg)',waist:'腰围(cm)'};
+
+  const ctx=document.getElementById('mainChart').getContext('2d');
+  if(chartInst)chartInst.destroy();
+  chartInst=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{
+      label:labelMap[field]||field,
+      data:vals,
+      borderColor:color,
+      backgroundColor:color+'20',
+      borderWidth:2.5,
+      pointRadius:3,
+      pointHoverRadius:6,
+      pointBackgroundColor:color,
+      fill:true,
+      tension:.3,
+    }]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1a2e',titleFont:{size:13},bodyFont:{size:12},cornerRadius:8,padding:10}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:11},color:'#6c757d'}},
+        y:{grid:{color:'#e9ecef'},ticks:{font:{size:11},color:'#6c757d'}}
+      },
+      interaction:{mode:'index',intersect:false}
+    }
+  });
+}
+
+// 更新迷你图
+function updateMiniChart(){
+  const activeCk=document.querySelector('#miniChartCk .ck.active');
+  if(!activeCk)return;
+  const field=activeCk.dataset.field;
+  const color=activeCk.dataset.color;
+  const points=data.metrics.filter(m=>m[field]!=null&&m[field]!=='').sort((a,b)=>a.date.localeCompare(b.date)).slice(-14);
+  const labels=points.map(p=>fmtDate(p.date));
+  const vals=points.map(p=>Number(p[field]));
+  const labelMap={weight:'体重(kg)',fat:'体脂率(%)',muscle:'肌肉量(kg)',waist:'腰围(cm)'};
+
+  const ctx=document.getElementById('miniChart').getContext('2d');
+  if(miniChartInst)miniChartInst.destroy();
+  if(vals.length<2){
+    miniChartInst=new Chart(ctx,{
+      type:'line',
+      data:{labels:[''],datasets:[{data:[null],borderColor:color,borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{display:false}}}
+    });
+    return;
+  }
+  miniChartInst=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{
+      label:labelMap[field]||field,data:vals,
+      borderColor:color,backgroundColor:color+'15',borderWidth:2,
+      pointRadius:0,pointHoverRadius:4,fill:true,tension:.4
+    }]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1a2e',cornerRadius:6,padding:8}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:10},maxTicksLimit:7,color:'#6c757d'}},y:{grid:{color:'#e9ecef'},ticks:{font:{size:10},color:'#6c757d'}}},
+      interaction:{mode:'index',intersect:false}
+    }
+  });
+}
+
+// 渲染日记列表
+function renderDiaries(){
+  const sorted=[...data.diaries].sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('diaryCount').textContent=`共 ${sorted.length} 篇`;
+  const el=document.getElementById('diaryList');
+  if(!sorted.length){
+    el.innerHTML='<div class="empty"><div class="icon">📝</div><p>还没有记录，写下你的第一篇健身笔记吧</p></div>';
+    return;
+  }
+  el.innerHTML=sorted.map(d=>`<div class="diary-item"><div class="diary-date">${fmtDateFull(d.date)}</div><div class="diary-title">${esc(d.title)}</div><div class="diary-content">${esc(d.content)}</div><div class="diary-tags">${(d.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div></div>`).join('');
+}
+
+// 渲染指标数据表
+function renderMetricTable(){
+  const sorted=[...data.metrics].sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('metricCount').textContent=`共 ${sorted.length} 条`;
+  const el=document.getElementById('metricTableWrap');
+  if(!sorted.length){
+    el.innerHTML='<div class="empty"><p>暂无指标数据</p></div>';
+    return;
+  }
+  let html='<table class="data-table"><thead><tr><th>日期</th><th>体重(kg)</th><th>体脂率(%)</th><th>肌肉量(kg)</th><th>腰围(cm)</th><th>备注</th></tr></thead><tbody>';
+  sorted.forEach(m=>{
+    html+=`<tr><td>${fmtDateFull(m.date)}</td><td>${m.weight||'—'}</td><td>${m.fat||'—'}</td><td>${m.muscle||'—'}</td><td>${m.waist||'—'}</td><td>${esc(m.note||'')}</td></tr>`;
+  });
+  html+='</tbody></table>';
+  el.innerHTML=html;
+}
+
+function esc(s){if(!s)return '';const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+
+// ===== 切换页面 =====
+function switchPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.style.display='none');
+  document.getElementById('page-'+name).style.display='block';
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.page===name));
+  if(name==='dashboard')renderDashboard();
+  if(name==='metrics'){updateMainChart();}
+  if(name==='diary')renderDiaries();
+  if(name==='data')renderMetricTable();
+}
+
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>switchPage(t.dataset.page)));
+
+// ===== 表单 =====
+// 指标
+document.getElementById('mDate').value=today();
+document.getElementById('metricForm').addEventListener('submit',function(e){
+  e.preventDefault();
+  const date=document.getElementById('mDate').value;
+  const weight=document.getElementById('mWeight').value;
+  const fat=document.getElementById('mFat').value;
+  const muscle=document.getElementById('mMuscle').value;
+  const waist=document.getElementById('mWaist').value;
+  const note=document.getElementById('mNote').value;
+  if(!weight&&!fat&&!muscle&&!waist){toast('请至少填写一项指标');return;}
+  let dt=data;
+  const existingIdx=dt.metrics.findIndex(m=>m.date===date);
+  const entry={date,weight:weight||null,fat:fat||null,muscle:muscle||null,waist:waist||null,note};
+  if(existingIdx>-1){
+    dt.metrics[existingIdx]={...dt.metrics[existingIdx],...entry};
+  }else{
+    dt.metrics.push(entry);
+  }
+  saveData(dt);data=dt;
+  this.reset();document.getElementById('mDate').value=today();
+  toast('✅ 指标已保存');
+  renderDashboard();updateMainChart();renderMetricTable();
+  schedulePush();
+});
+
+// 日记
+document.getElementById('dDate').value=today();
+document.getElementById('diaryForm').addEventListener('submit',function(e){
+  e.preventDefault();
+  const date=document.getElementById('dDate').value;
+  const title=document.getElementById('dTitle').value.trim();
+  const content=document.getElementById('dContent').value.trim();
+  if(!title||!content){toast('请填写标题和内容');return;}
+  const tags=[...document.querySelectorAll('.dtag:checked')].map(c=>c.value);
+  let dt=data;
+  dt.diaries.push({date,title,content,tags,createdAt:new Date().toISOString()});
+  saveData(dt);data=dt;
+  this.reset();document.getElementById('dDate').value=today();
+  document.querySelectorAll('.dtag').forEach(c=>c.checked=false);
+  toast('✅ 笔记已保存');
+  renderDashboard();renderDiaries();
+  schedulePush();
+});
+
+// ===== 导出 =====
+document.getElementById('exportMetrics').addEventListener('click',()=>exportData('metrics'));
+document.getElementById('exportDiaries').addEventListener('click',()=>exportData('diaries'));
+document.getElementById('exportAll').addEventListener('click',()=>exportData('all'));
+
+function exportData(type){
+  const wb=XLSX.utils.book_new();
+  if(type==='metrics'||type==='all'){
+    const rows=data.metrics.sort((a,b)=>a.date.localeCompare(b.date)).map(m=>({
+      '日期':fmtDateFull(m.date),'体重(kg)':m.weight||'','体脂率(%)':m.fat||'','肌肉量(kg)':m.muscle||'','腰围(cm)':m.waist||'','备注':m.note||''
+    }));
+    const ws=XLSX.utils.json_to_sheet(rows);
+    ws['!cols']=[{wch:14},{wch:10},{wch:10},{wch:10},{wch:10},{wch:20}];
+    XLSX.utils.book_append_sheet(wb,ws,'身体指标');
+  }
+  if(type==='diaries'||type==='all'){
+    const rows=data.diaries.sort((a,b)=>a.date.localeCompare(b.date)).map(d=>({
+      '日期':fmtDateFull(d.date),'标题':d.title,'内容':d.content,'标签':(d.tags||[]).join('、')
+    }));
+    const ws=XLSX.utils.json_to_sheet(rows);
+    ws['!cols']=[{wch:14},{wch:20},{wch:50},{wch:16}];
+    XLSX.utils.book_append_sheet(wb,ws,'健身日记');
+  }
+  if(type==='all'&&data.metrics.length&&data.diaries.length){
+    // 统计汇总
+    const ms=data.metrics.sort((a,b)=>a.date.localeCompare(b.date));
+    const first=ms[0],last=ms[ms.length-1];
+    const wb2=XLSX.utils.book_new();
+    // 复制sheet
+    wb.SheetNames.forEach(n=>XLSX.utils.book_append_sheet(wb2,wb.Sheets[n],n));
+    // 加统计
+    const summaryRows=[
+      {项目:'首次记录日期',数值:fmtDateFull(first.date)},
+      {项目:'末次记录日期',数值:fmtDateFull(last.date)},
+      {项目:'记录天数',数值:ms.length},
+      {项目:'日记篇数',数值:data.diaries.length},
+    ];
+    if(ms.length>=2){
+      const w1=ms[0].weight,l1=ms[ms.length-1].weight;
+      if(w1&&l1)summaryRows.push({项目:'体重变化',数值:`${w1} → ${l1} (${(l1-w1>0?'+':'')+(l1-w1).toFixed(1)}kg)`});
+    }
+    const sws=XLSX.utils.json_to_sheet(summaryRows);
+    XLSX.utils.book_append_sheet(wb2,sws,'统计概览');
+    XLSX.writeFile(wb2,`FitTrack_健身数据_${today()}.xlsx`);
+    toast(`✅ 已导出 FitTrack_健身数据_${today()}.xlsx`);
+    return;
+  }
+  const fn=type==='metrics'?`FitTrack_指标数据_${today()}.xlsx`:`FitTrack_日记数据_${today()}.xlsx`;
+  XLSX.writeFile(wb,fn);
+  toast(`✅ 已导出 ${fn}`);
+}
+
+// ===== 云同步（坚果云 WebDAV 直连，无 Cloudflare 中转） =====
+const WEBDAV_URL='https://dav.jianguoyun.com/dav/FitTrack/data.json';
+function getSyncCfg(){
+  try{return JSON.parse(localStorage.getItem('fittrack_sync'))||{}}catch{return {}}
+}
+function setSyncCfg(c){localStorage.setItem('fittrack_sync',JSON.stringify(c))}
+function setSyncStatus(msg){
+  const el=document.getElementById('syncStatus');
+  if(el)el.textContent=msg;
+}
+async function webdav(){
+  const w=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.WebDav;
+  if(!w)throw new Error('WebDav 插件不可用，请在安卓 App 中运行');
+  return w;
+}
+async function cloudPull(){
+  const cfg=getSyncCfg();
+  if(!cfg.user||!cfg.pass)throw new Error('未配置同步');
+  const w=await webdav();
+  const r=await w.getData({url:WEBDAV_URL,user:cfg.user,pass:cfg.pass});
+  if(r.empty)return {empty:true};
+  if(r.error)throw new Error(r.error==='auth'?'坚果云账号或应用密码错误':'拉取失败 ('+r.status+')');
+  return JSON.parse(r.text);
+}
+async function cloudPush(payload){
+  const cfg=getSyncCfg();
+  if(!cfg.user||!cfg.pass)throw new Error('未配置同步');
+  const w=await webdav();
+  const r=await w.putData({url:WEBDAV_URL,user:cfg.user,pass:cfg.pass,body:JSON.stringify(payload)});
+  if(r.error)throw new Error(r.error==='auth'?'坚果云账号或应用密码错误':'上传失败 ('+r.status+')');
+}
+
+// 本地修改后防抖推送
+let syncTimer=null;
+function schedulePush(){
+  const cfg=getSyncCfg();
+  if(!cfg.user||!cfg.pass)return;
+  clearTimeout(syncTimer);
+  setSyncStatus('⏳ 待同步…');
+  syncTimer=setTimeout(doPush,1500);
+}
+async function doPush(){
+  setSyncStatus('⏫ 上传中…');
+  try{
+    data.updatedAt=new Date().toISOString();
+    await cloudPush(data);
+    saveData(data);
+    setSyncStatus('✅ 已同步 '+new Date().toLocaleTimeString());
+  }catch(e){
+    setSyncStatus('⚠️ 上传失败：'+e.message);
+  }
+}
+
+// 完整同步：拉取→比较时间戳→新者胜出
+async function doSync(){
+  const cfg=getSyncCfg();
+  if(!cfg.user||!cfg.pass){setSyncStatus('未配置云同步');return;}
+  setSyncStatus('🔄 同步中…');
+  try{
+    const remote=await cloudPull();
+    if(remote.empty){
+      await doPush();
+      return;
+    }
+    const localTime=data.updatedAt||'';
+    const remoteTime=remote.updatedAt||'';
+    if(remoteTime>localTime){
+      data={metrics:remote.metrics||[],diaries:remote.diaries||[],updatedAt:remote.updatedAt};
+      saveData(data);
+      refreshAll();
+      setSyncStatus('✅ 已从云端拉取 '+new Date().toLocaleTimeString());
+    }else if(localTime>remoteTime){
+      await doPush();
+    }else{
+      setSyncStatus('✅ 已是最新 '+new Date().toLocaleTimeString());
+    }
+  }catch(e){
+    setSyncStatus('⚠️ '+e.message);
+  }
+}
+
+function refreshAll(){
+  renderDashboard();updateMainChart();updateMiniChart();renderDiaries();renderMetricTable();
+}
+
+// 同步配置表单
+document.getElementById('saveSyncCfg').addEventListener('click',function(){
+  const user=document.getElementById('davUser').value.trim();
+  const pass=document.getElementById('davPass').value.trim();
+  if(!user||!pass){toast('请填写坚果云账号和应用密码');return;}
+  setSyncCfg({user,pass});
+  toast('✅ 配置已保存');
+  doSync();
+});
+document.getElementById('syncNow').addEventListener('click',doSync);
+
+// ===== 初始化 =====
+document.getElementById('todayLabel').textContent=today();
+// 回填同步配置
+(function(){
+  const cfg=getSyncCfg();
+  if(cfg.user)document.getElementById('davUser').value=cfg.user;
+  if(cfg.pass)document.getElementById('davPass').value=cfg.pass;
+})();
+renderChartCtrls();
+renderDashboard();
+updateMainChart();
+updateMiniChart();
+renderDiaries();
+renderMetricTable();
+// 启动时自动同步
+doSync();
+</script>
+</body>
+</html>
