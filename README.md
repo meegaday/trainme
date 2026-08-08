@@ -48,6 +48,23 @@ A CI workflow (`.github/workflows/build.yml`) builds the debug APK on GitHub's s
 
 > Because CI runs `npm install` + `npx cap sync android` automatically, **after editing `www/` you only need to `git push`** — no local commands required to get a fresh APK.
 
+## Build a versioned APK & share it (GitHub Release — anyone can download)
+A second workflow (`.github/workflows/release.yml`) builds the APK and publishes it as a **GitHub Release asset** — a public, permanent download link that works for anyone (no GitHub login needed, unlike Actions artifacts which expire and require repo access).
+
+**Trigger (pick one):**
+- **Manual:** Actions → `Release FitTrack APK` → **Run workflow** → enter version e.g. `1.0.0` → run.
+- **By tag:** `git tag v1.0.0 && git push origin v1.0.0`.
+
+What happens:
+1. CI builds `app-debug.apk` and stamps the app's `versionName` to the version you entered.
+2. It creates a Release `v1.0.0` with asset `FitTrack-v1.0.0.apk`.
+
+**Download / share:**
+- Releases page: `https://github.com/meegaday/trainme/releases` (click the version → download `FitTrack-vX.X.X.apk`).
+- Direct link (send this to anyone): `https://github.com/meegaday/trainme/releases/download/v1.0.0/FitTrack-v1.0.0.apk`
+
+> **Public download requires a public repo.** If your repo is private, only collaborators can fetch the asset. Make it public at Settings → General → Change visibility → Public (this also exposes the source — your call).
+
 ## Notes
 - Permissions: `INTERNET` only (cloud sync).
 - `minSdk 24` (Android 7.0), `targetSdk 36`.
