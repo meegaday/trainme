@@ -13,7 +13,7 @@ The web source (`www/`) is packaged into a native WebView shell — 100% code re
 | Tool | Version | Needed for |
 |------|---------|-----------|
 | Android Studio | latest (Hedgehog or newer) | local build / run / release |
-| JDK | 17 | Gradle build (bundled with Android Studio) |
+| JDK | 21 | Gradle build (Cordova Android 14 requires Java 21) |
 | Android SDK | Platform 36 + Build-Tools 36.0.0 | compilation |
 | Node.js | 18+ (22 used here) | only when updating web assets (`npx cap sync`) |
 
